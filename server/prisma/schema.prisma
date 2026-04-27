@@ -33,15 +33,35 @@ model User {
   subscription_tier      SubscriptionTier @default(FREE)
   stripe_customer_id     String?          @unique
   stripe_subscription_id String?          @unique
+  
+  portfolios             Portfolio[]
   trades                 Trade[]
+  
   created_at             DateTime         @default(now())
   updated_at             DateTime         @updatedAt
+}
+
+model Portfolio {
+  id          Int      @id @default(autoincrement())
+  user_id     Int
+  user        User     @relation(fields: [user_id], references: [id])
+  name        String
+  description String?
+  currency    String   @default("USD")
+  trades      Trade[]
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([user_id])
 }
 
 model Trade {
   id            Int          @id @default(autoincrement())
   user_id       Int
   user          User         @relation(fields: [user_id], references: [id])
+  portfolio_id  Int?
+  portfolio     Portfolio?   @relation(fields: [portfolio_id], references: [id])
+  
   asset_name    String       // e.g., "BTC/USDT", "EUR/USD"
   asset_class   String       // e.g., "CRYPTO", "FOREX", "STOCKS"
   position_type PositionType
@@ -57,11 +77,13 @@ model Trade {
   pnl_net       Float?
   pnl_percent   Float?
   
+  notes         String?
   opened_at     DateTime     @default(now())
   closed_at     DateTime?
   created_at    DateTime     @default(now())
   updated_at    DateTime     @updatedAt
 
   @@index([user_id])
+  @@index([portfolio_id])
   @@index([status])
 }

@@ -1,16 +1,17 @@
-import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../../db/prisma';
-import { calculatePnL } from '../../services/profitEngine';
+import { Response, NextFunction } from 'express';
+import { TradeService } from '../../services/tradeService';
 import { sendSuccess, sendError } from '../../utils/response';
+import { prisma } from '../../db/prisma';
 
 export class TradesController {
     static async getTrades(req: any, res: Response, next: NextFunction) {
         try {
-            const { page = 1, limit = 20, status } = req.query;
+            const { page = 1, limit = 20, status, portfolio_id } = req.query;
             const skip = (Number(page) - 1) * Number(limit);
 
             const where: any = { user_id: req.user.id };
             if (status) where.status = status;
+            if (portfolio_id) where.portfolio_id = Number(portfolio_id);
 
             const [trades, total] = await Promise.all([
                 prisma.trade.findMany({
@@ -38,38 +39,12 @@ export class TradesController {
 
     static async addTrade(req: any, res: Response, next: NextFunction) {
         try {
-            const data = req.body;
-            const userId = req.user.id;
-
-            let pnl_net = null;
-            let pnl_percent = null;
-
-            if (data.status === 'CLOSED' && data.exit_price) {
-                const result = calculatePnL({
-                    type: data.position_type,
-                    entryPrice: data.entry_price,
-                    exitPrice: data.exit_price,
-                    quantity: data.quantity,
-                    leverage: data.leverage || 1,
-                    fees: data.fees || 0
-                });
-                pnl_net = result.netPnL;
-                pnl_percent = result.roi;
-            }
-
-            const trade = await prisma.trade.create({
-                data: {
-                    ...data,
-                    user_id: userId,
-                    pnl_net,
-                    pnl_percent,
-                    opened_at: data.opened_at ? new Date(data.opened_at) : new Date(),
-                    closed_at: data.closed_at ? new Date(data.closed_at) : (data.status === 'CLOSED' ? new Date() : null),
-                }
-            });
-            
+            const trade = await TradeService.processTrade(req.user.id, req.body);
             return sendSuccess(res, trade, 201);
-        } catch (error) {
+        } catch (error: any) {
+            if (error.message.includes('limit reached')) {
+                return sendError(res, error.message, 403);
+            }
             next(error);
         }
     }

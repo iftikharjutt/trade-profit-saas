@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import authRoutes from './modules/auth/auth.routes';
 import tradeRoutes from './modules/trades/trades.routes';
 import reportRoutes from './modules/reports/reports.routes';
+import portfolioRoutes from './modules/portfolios/portfolios.routes';
+import paymentRoutes from './modules/payments/payments.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 dotenv.config();
@@ -13,8 +15,14 @@ dotenv.config();
 const app = express();
 
 // Security Middlewares
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false // Better for dev/some integrations
+}));
 app.use(cors());
+
+// Webhook route must be before express.json() for raw body access
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 
 // Rate Limiting
@@ -28,6 +36,8 @@ app.use('/api/', limiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/portfolios', portfolioRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

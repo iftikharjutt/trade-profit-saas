@@ -1,30 +1,35 @@
-# Trade Profit SaaS - Deployment Guide
+# Trade Profit SaaS - Production Upgrade Plan
 
-## Backend (Railway / Render / VPS)
-1. **Environment Variables**:
-   - `DATABASE_URL`: Connection string to your PostgreSQL (Supabase/Neon).
-   - `JWT_SECRET`: Random secure string for signing tokens.
-   - `PORT`: Default is 4000.
-   - `NODE_ENV`: Set to `production`.
+## Overview
+This document outlines the architectural changes made to transform the prototype into a production-grade fintech SaaS.
 
-2. **Build & Run**:
-   ```bash
-   cd server
-   npm install
-   npx prisma generate
-   npm run build
-   npm start
-   ```
+### Phase 1: Deep Code Review
+- **Issue**: Flat trade structure. **Fix**: Migrated to a Portfolio-based hierarchy.
+- **Issue**: Scalability. **Fix**: Implemented cursor-based pagination and modular services.
+- **Issue**: Monetization. **Fix**: Integrated Stripe Billing and feature-gating middleware.
 
-## Database (Supabase / Neon)
-1. Create a new PostgreSQL instance.
-2. Run migrations: `npx prisma migrate deploy`.
+### Phase 2: Core System Design
+- **Database**: PostgreSQL with Prisma. Added `Portfolio` and `Subscription` models.
+- **API**: RESTful API with modular routes and controllers.
+- **Services**: Business logic moved to specialized services (e.g., `profitEngine.ts`, `StripeService`).
 
-## Frontend (Vercel / Netlify)
-1. Update API Base URL to point to your deployed backend.
-2. `npm run build` and deploy.
+### Phase 3: Trading Engine (Mathematically Correct)
+- Support for **Leverage** and **Fees**.
+- **Risk Metrics**: Added R-Multiple and Drawdown calculations.
+- **Directional Logic**: Handles Long and Short positions correctly using margin math.
 
-## Security Notes
-- Ensure CORS in `app.ts` is restricted to your frontend domain in production.
-- Use HTTPS for all communications.
-- Rotate `JWT_SECRET` periodically if needed.
+### Phase 4: Analytics Dashboard
+- **Visuals**: Recharts integration for Equity Curves.
+- **KPIs**: Win Rate, Avg ROI, Max Drawdown, Total Net Profit.
+- **AI Insights**: Integrated (mocked) strategy insights for traders.
+
+### Phase 5: SaaS Business Layer
+- **Auth**: JWT-based authentication.
+- **Monetization**: Stripe Checkout and Webhooks.
+- **Feature Gating**: Middleware to restrict premium analytics to Pro users.
+
+## Deployment Guide
+1. **Database**: `npx prisma migrate dev` to update the schema.
+2. **Backend**: `npm run build` in `/server`. Set `STRIPE_SECRET_KEY`.
+3. **Frontend**: `npm run build` in `/client-next`.
+4. **Environment**: Ensure all variables in `.env.example` are populated.

@@ -42,6 +42,32 @@ export const reportService = {
   getSummary: async () => {
     const res = await api.get('/reports/summary');
     return unwrap(res);
+  },
+  getRiskAssessment: async () => {
+    const res = await api.get('/reports/risk-assessment');
+    return unwrap(res);
+  }
+};
+
+export const portfolioService = {
+  getPortfolios: async () => {
+    const res = await api.get('/portfolios');
+    return unwrap(res);
+  },
+  createPortfolio: async (data: any) => {
+    const res = await api.post('/portfolios', data);
+    return unwrap(res);
+  },
+  deletePortfolio: async (id: number) => {
+    const res = await api.delete(`/portfolios/${id}`);
+    return unwrap(res);
+  }
+};
+
+export const paymentService = {
+  createCheckoutSession: async (priceId: string) => {
+    const res = await api.post('/payments/create-checkout-session', { priceId });
+    return unwrap(res);
   }
 };
 
