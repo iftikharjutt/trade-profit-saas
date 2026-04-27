@@ -1,0 +1,67 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum PositionType {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+}
+
+model User {
+  id                     Int              @id @default(autoincrement())
+  name                   String
+  email                  String           @unique
+  password_hash          String
+  subscription_tier      SubscriptionTier @default(FREE)
+  stripe_customer_id     String?          @unique
+  stripe_subscription_id String?          @unique
+  trades                 Trade[]
+  created_at             DateTime         @default(now())
+  updated_at             DateTime         @updatedAt
+}
+
+model Trade {
+  id            Int          @id @default(autoincrement())
+  user_id       Int
+  user          User         @relation(fields: [user_id], references: [id])
+  asset_name    String       // e.g., "BTC/USDT", "EUR/USD"
+  asset_class   String       // e.g., "CRYPTO", "FOREX", "STOCKS"
+  position_type PositionType
+  status        TradeStatus  @default(CLOSED)
+  
+  entry_price   Float
+  exit_price    Float?
+  quantity      Float
+  leverage      Float        @default(1.0)
+  fees          Float        @default(0.0)
+  
+  // Realized PnL (calculated on close)
+  pnl_net       Float?
+  pnl_percent   Float?
+  
+  opened_at     DateTime     @default(now())
+  closed_at     DateTime?
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+
+  @@index([user_id])
+  @@index([status])
+}
