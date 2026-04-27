@@ -69,6 +69,8 @@ export class TradesController {
         }
     }
 
+import { AICoachService } from '../../services/aiCoachService';
+...
     static async deletePosition(req: any, res: Response, next: NextFunction) {
         try {
             const id = parseInt(req.params.id);
@@ -80,6 +82,16 @@ export class TradesController {
 
             await prisma.position.delete({ where: { id } });
             return sendSuccess(res, { message: "Position deleted" });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getPositionCoach(req: any, res: Response, next: NextFunction) {
+        try {
+            const id = parseInt(req.params.id);
+            const feedback = await AICoachService.coachPosition(id);
+            return sendSuccess(res, { feedback });
         } catch (error) {
             next(error);
         }

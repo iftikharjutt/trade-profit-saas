@@ -1,6 +1,8 @@
+import Decimal from 'decimal.js';
+
 /**
- * Position Engine: The core math for production-grade trading analytics.
- * Handles scaling in, partial closes, and complex PnL tracking.
+ * Enterprise Position Engine: Quantitative-grade math for trading systems.
+ * Uses Decimal.js to prevent floating point errors critical in financial apps.
  */
 
 export interface PositionState {
@@ -19,41 +21,69 @@ export const calculatePositionUpdate = (
     fees: number,
     leverage: number = 1
 ): PositionState => {
-    let { avgEntryPrice, totalQuantity, realizedPnL, totalFees } = currentState;
-    totalFees += fees;
+    // Basic validation
+    if (price <= 0 || quantity <= 0) {
+        throw new Error("Price and quantity must be positive non-zero values.");
+    }
+
+    const currentAvg = new Decimal(currentState.avgEntryPrice);
+    const currentQty = new Decimal(currentState.totalQuantity);
+    const execPrice = new Decimal(price);
+    const execQty = new Decimal(quantity);
+    const execFees = new Decimal(fees);
+    const currentPnL = new Decimal(currentState.realizedPnL);
+    const currentFees = new Decimal(currentState.totalFees);
+    const lev = new Decimal(leverage);
+
+    let nextAvg = currentAvg;
+    let nextQty = currentQty;
+    let nextPnL = currentPnL;
+    let nextFees = currentFees.plus(execFees);
 
     if (executionType === 'ENTRY') {
         // Scaling In: Weighted Average Entry Price
-        const newTotalQuantity = totalQuantity + quantity;
-        avgEntryPrice = ((avgEntryPrice * totalQuantity) + (price * quantity)) / newTotalQuantity;
-        totalQuantity = newTotalQuantity;
+        // newAvg = (oldAvg * oldQty + newPrice * newQty) / (oldQty + newQty)
+        const totalValue = currentAvg.times(currentQty).plus(execPrice.times(execQty));
+        nextQty = currentQty.plus(execQty);
+        nextAvg = totalValue.dividedBy(nextQty);
     } else {
         // Scaling Out: Realized PnL calculation
+        if (execQty.gt(currentQty)) {
+            throw new Error(`Insufficient position size. Current: ${currentQty.toString()}, Requested: ${execQty.toString()}`);
+        }
+
         // PnL = (Exit - Entry) * Qty * Leverage (for Long)
         // PnL = (Entry - Exit) * Qty * Leverage (for Short)
-        const priceDiff = side === 'LONG' ? (price - avgEntryPrice) : (avgEntryPrice - price);
-        const pnl = priceDiff * quantity * leverage;
-        
-        realizedPnL += pnl;
-        totalQuantity -= quantity;
+        let priceDiff;
+        if (side === 'LONG') {
+            priceDiff = execPrice.minus(currentAvg);
+        } else {
+            priceDiff = currentAvg.minus(execPrice);
+        }
 
-        // If fully closed, entry price remains for history or reset
-        if (totalQuantity <= 0) {
-            totalQuantity = 0;
-            // Note: We keep avgEntryPrice for the record of the closed position
+        const realized = priceDiff.times(execQty).times(lev);
+        nextPnL = currentPnL.plus(realized);
+        nextQty = currentQty.minus(execQty);
+
+        if (nextQty.isZero()) {
+            // Position closed exactly
+            nextQty = new Decimal(0);
         }
     }
 
     return {
-        avgEntryPrice: parseFloat(avgEntryPrice.toFixed(8)),
-        totalQuantity: parseFloat(totalQuantity.toFixed(8)),
-        realizedPnL: parseFloat(realizedPnL.toFixed(4)),
-        totalFees: parseFloat(totalFees.toFixed(4))
+        avgEntryPrice: nextAvg.toDecimalPlaces(8).toNumber(),
+        totalQuantity: nextQty.toDecimalPlaces(8).toNumber(),
+        realizedPnL: nextPnL.toDecimalPlaces(4).toNumber(),
+        totalFees: nextFees.toDecimalPlaces(4).toNumber()
     };
 };
 
 export const calculateROI = (realizedPnL: number, avgEntryPrice: number, quantity: number): number => {
-    const costBasis = avgEntryPrice * quantity;
-    if (costBasis === 0) return 0;
-    return (realizedPnL / costBasis) * 100;
+    const pnl = new Decimal(realizedPnL);
+    const cost = new Decimal(avgEntryPrice).times(new Decimal(quantity));
+    
+    if (cost.isZero()) return 0;
+    
+    return pnl.dividedBy(cost).times(100).toDecimalPlaces(2).toNumber();
 };
