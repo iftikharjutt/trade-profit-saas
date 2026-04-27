@@ -15,12 +15,12 @@ enum SubscriptionTier {
   PREMIUM
 }
 
-enum PositionType {
+enum PositionSide {
   LONG
   SHORT
 }
 
-enum TradeStatus {
+enum PositionStatus {
   OPEN
   CLOSED
 }
@@ -35,55 +35,65 @@ model User {
   stripe_subscription_id String?          @unique
   
   portfolios             Portfolio[]
-  trades                 Trade[]
+  positions              Position[]
   
   created_at             DateTime         @default(now())
   updated_at             DateTime         @updatedAt
 }
 
 model Portfolio {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   user_id     Int
-  user        User     @relation(fields: [user_id], references: [id])
+  user        User       @relation(fields: [user_id], references: [id])
   name        String
-  description String?
-  currency    String   @default("USD")
-  trades      Trade[]
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  currency    String     @default("USD")
+  positions   Position[]
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
 
   @@index([user_id])
 }
 
-model Trade {
-  id            Int          @id @default(autoincrement())
+model Position {
+  id            Int            @id @default(autoincrement())
   user_id       Int
-  user          User         @relation(fields: [user_id], references: [id])
+  user          User           @relation(fields: [user_id], references: [id])
   portfolio_id  Int?
-  portfolio     Portfolio?   @relation(fields: [portfolio_id], references: [id])
+  portfolio     Portfolio?     @relation(fields: [portfolio_id], references: [id])
   
-  asset_name    String       // e.g., "BTC/USDT", "EUR/USD"
-  asset_class   String       // e.g., "CRYPTO", "FOREX", "STOCKS"
-  position_type PositionType
-  status        TradeStatus  @default(CLOSED)
+  asset_symbol  String         // e.g., "BTC/USDT"
+  side          PositionSide
+  status        PositionStatus @default(OPEN)
   
-  entry_price   Float
-  exit_price    Float?
-  quantity      Float
-  leverage      Float        @default(1.0)
-  fees          Float        @default(0.0)
+  leverage      Float          @default(1.0)
   
-  // Realized PnL (calculated on close)
-  pnl_net       Float?
-  pnl_percent   Float?
+  // Aggregated values
+  avg_entry_price Float        @default(0.0)
+  avg_exit_price  Float?
+  total_quantity  Float        @default(0.0)
+  realized_pnl    Float        @default(0.0)
+  total_fees      Float        @default(0.0)
   
-  notes         String?
-  opened_at     DateTime     @default(now())
+  executions      Execution[]
+  
+  opened_at     DateTime       @default(now())
   closed_at     DateTime?
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
+  updated_at    DateTime       @updatedAt
 
   @@index([user_id])
-  @@index([portfolio_id])
   @@index([status])
+}
+
+model Execution {
+  id          Int      @id @default(autoincrement())
+  position_id Int
+  position    Position @relation(fields: [position_id], references: [id], onDelete: Cascade)
+  
+  type        String   // "ENTRY" or "EXIT"
+  price       Float
+  quantity    Float
+  fees        Float    @default(0.0)
+  executed_at DateTime @default(now())
+
+  @@index([position_id])
 }

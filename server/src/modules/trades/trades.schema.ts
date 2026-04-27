@@ -1,20 +1,15 @@
 import { z } from 'zod';
 
-export const addTradeSchema = z.object({
+export const addExecutionSchema = z.object({
     body: z.object({
-        asset_name: z.string().min(1, "Asset name is required"),
-        asset_class: z.string().min(1, "Asset class is required"),
-        position_type: z.enum(["LONG", "SHORT"]),
-        entry_price: z.number().positive(),
-        exit_price: z.number().positive().optional(),
+        position_id: z.number().int().optional(),
+        asset_symbol: z.string().min(1, "Asset symbol is required"),
+        side: z.enum(["LONG", "SHORT"]),
+        type: z.enum(["ENTRY", "EXIT"]),
+        price: z.number().positive(),
         quantity: z.number().positive(),
-        leverage: z.number().min(1).default(1),
         fees: z.number().min(0).default(0),
-        stop_loss: z.number().positive().optional(),
+        leverage: z.number().min(1).default(1),
         portfolio_id: z.number().int().optional(),
-        status: z.enum(["OPEN", "CLOSED"]).default("CLOSED"),
-        notes: z.string().optional(),
-        opened_at: z.string().datetime().optional(),
-        closed_at: z.string().datetime().optional(),
     }),
 });
